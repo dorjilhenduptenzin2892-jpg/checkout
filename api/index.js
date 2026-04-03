@@ -493,12 +493,36 @@ async function handleCallback(req, res) {
 
 async function handleReturn(req, res) {
   const u = new URL(req.url, `http://${req.headers.host}`);
-  const txnId = u.searchParams.get('txnId');
+  
+  // Extract txnId from query params (works for both GET and POST)
+  let txnId = u.searchParams.get('txnId');
+  
+  // For POST requests, also check the request body for MPI fields
+  let mpiFields = {};
+  if (req.method === 'POST') {
+    const raw = await parseBody(req);
+    const contentType = (req.headers['content-type'] || '').toLowerCase();
+    
+    if (contentType.includes('application/json')) {
+      try {
+        mpiFields = JSON.parse(raw || '{}');
+      } catch (e) {
+        mpiFields = {};
+      }
+    } else {
+      mpiFields = parseForm(raw);
+    }
+    
+    // Extract txnId from POST body if not in query params
+    if (!txnId) {
+      txnId = mpiFields.MPI_TRXN_ID || mpiFields.txnId || '';
+    }
+  }
 
   if (!txnId) {
     return html(res, 400, renderReturnPage('No transaction reference received', {
       error: 'No transaction reference received',
-      note: 'The merchant return page requires a txnId query parameter.',
+      note: 'The transaction reference must be provided via query parameter (txnId) or POST field (MPI_TRXN_ID).',
     }));
   }
 
@@ -523,6 +547,55 @@ async function handleReturn(req, res) {
     }));
   }
 
+  // If this is a POST with MPI response fields, update the transaction
+  if (req.method === 'POST' && Object.keys(mpiFields).length > 0) {
+    let macVerified = false;
+    let verifyNote = 'No MAC in response';
+    let orderStatus = tx.status || 'PENDING';
+
+    if (mpiFields.MPI_MAC && tx.cardzonePublicKeyBase64Url) {
+      const verifyString = mpiResVerifyString(mpiFields);
+      macVerified = verifySha256WithRsaBase64Url(
+        verifyString,
+        mpiFields.MPI_MAC,
+        tx.cardzonePublicKeyBase64Url,
+      );
+      verifyNote = macVerified ? 'MPIRes MAC verified successfully' : 'MPIRes MAC verification failed';
+    }
+
+    if (!mpiFields.MPI_MAC) {
+      orderStatus = 'REVIEW_REQUIRED_NO_MAC';
+    } else if (!macVerified) {
+      orderStatus = 'REVIEW_REQUIRED_MAC_FAILED';
+    } else if ((mpiFields.MPI_ERROR_CODE || '') === '000') {
+      orderStatus = 'SUCCESS';
+    } else if ((mpiFields.MPI_ERROR_CODE || '') === 'TO') {
+      orderStatus = 'PENDING_INQUIRY_REQUIRED';
+    } else if (mpiFields.MPI_ERROR_CODE) {
+      orderStatus = 'FAILED';
+    }
+
+    // Update transaction with callback data
+    tx.callback = {
+      receivedAt: new Date().toISOString(),
+      method: req.method,
+      macVerified,
+      verifyNote,
+      orderStatus,
+      fields: mpiFields,
+    };
+    tx.status = orderStatus;
+    txStore.set(tx.txnId, tx);
+
+    // Persist updated transaction to file
+    try {
+      const txFile = path.join(TEMP_DIR, `txn_${txnId}.json`);
+      await fs.writeFile(txFile, JSON.stringify(tx, null, 2), 'utf8');
+    } catch (e) {
+      console.error(`Failed to update transaction file: ${e.message}`);
+    }
+  }
+
   const displayData = {
     txnId: tx.txnId,
     orderRef: tx.orderRef,
@@ -537,6 +610,7 @@ async function handleReturn(req, res) {
       receivedAt: tx.callback.receivedAt,
       orderStatus: tx.callback.orderStatus,
       macVerified: tx.callback.macVerified,
+      verifyNote: tx.callback.verifyNote,
       errorCode: tx.callback.fields?.MPI_ERROR_CODE || null,
       approvalCode: tx.callback.fields?.MPI_APPR_CODE || null,
     } : null,
@@ -575,7 +649,7 @@ module.exports = async function handler(req, res) {
     if (req.method === 'POST' && u.pathname === '/callback') {
       return await handleCallback(req, res);
     }
-    if (req.method === 'GET' && u.pathname === '/return') {
+    if ((req.method === 'GET' || req.method === 'POST') && u.pathname === '/return') {
       return await handleReturn(req, res);
     }
     if (req.method === 'GET' && u.pathname === '/transactions') {
