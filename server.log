@@ -1,6 +1,6 @@
 Cardzone UAT checkout starter running at http://localhost:3001
-Using mkReq URL: https://3dsecure.bob.bt/3dss/mkReq
-Using redirect URL: https://uatczsecure.bob.bt/3dss/rreq
+Using mkReq URL: https://uatczsecure.bob.bt/3dss/mkReq
+Using redirect URL: https://uatczsecure.bob.bt/3dss/mercReq
 Reference RReq URL: https://uatczsecure.bob.bt/3dss/rreq
 Reference CRes URL: https://uatczsecure.bob.bt/3dss/cresp
 Reference notifyReq URL: https://uatczsecure.bob.bt/3dss/notifyReq
