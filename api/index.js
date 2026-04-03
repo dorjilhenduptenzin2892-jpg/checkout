@@ -13,9 +13,6 @@ const CARDZONE_PROFILE_URL = process.env.CARDZONE_PROFILE_URL || '';
 const RESPONSE_TYPE = process.env.RESPONSE_TYPE || 'STRING';
 const DEFAULT_CURRENCY = process.env.DEFAULT_CURRENCY || '064';
 const ENABLE_MKREQ_MAC = process.env.ENABLE_MKREQ_MAC === 'true';
-const MKREQ_KEY_EXCHANGE_PRESTORED = process.env.MKREQ_KEY_EXCHANGE_PRESTORED === 'true';
-const MPIREQ_MAC_MODE = process.env.MPIREQ_MAC_MODE || '';
-const MPIREQ_INCLUDE_RESPONSE_LINK_IN_MAC = process.env.MPIREQ_INCLUDE_RESPONSE_LINK_IN_MAC === 'true';
 const TEMP_DIR = '/tmp'; // Vercel uses /tmp for temp storage
 
 const txStore = new Map();
@@ -162,79 +159,70 @@ function mkReqSignString({ merchantId, purchaseId, pubKey }) {
   return `${merchantId || ''}${purchaseId || ''}${pubKey || ''}`;
 }
 
-function getMpiReqMacOptions() {
-  switch ((MPIREQ_MAC_MODE || '').trim().toLowerCase()) {
-    case 'spec-response-link':
-      return { mode: 'spec-response-link', includeResponseLink: true, includeResponseType: true };
-    case 'spec-no-response-type':
-      return { mode: 'spec-no-response-type', includeResponseLink: false, includeResponseType: false };
-    case 'spec-no-response-type-response-link':
-      return { mode: 'spec-no-response-type-response-link', includeResponseLink: true, includeResponseType: false };
-    case 'spec':
-      return { mode: 'spec', includeResponseLink: false, includeResponseType: true };
-    default:
-      return {
-        mode: MPIREQ_INCLUDE_RESPONSE_LINK_IN_MAC ? 'spec-response-link' : 'spec',
-        includeResponseLink: MPIREQ_INCLUDE_RESPONSE_LINK_IN_MAC,
-        includeResponseType: true,
-      };
-  }
-}
-
-function mpiReqSignString(fields, options = {}) {
-  const includeResponseLink = !!options.includeResponseLink;
-  const includeResponseType = options.includeResponseType !== false;
+function getMpiReqMacFieldSequence(fields) {
   const lineItems = Array.isArray(fields.MPI_LINE_ITEM) ? fields.MPI_LINE_ITEM : [];
   const flattenedLineItems = lineItems
     .map(item => `${item.MPI_ITEM_ID || ''}${item.MPI_ITEM_REMARK || ''}${item.MPI_ITEM_QUANTITY || ''}${item.MPI_ITEM_AMOUNT || ''}${item.MPI_ITEM_CURRENCY || ''}`)
     .join('');
 
-  const signParts = [
-    fields.MPI_TRANS_TYPE,
-    fields.MPI_MERC_ID,
-    fields.MPI_PAN,
-    fields.MPI_CARD_HOLDER_NAME,
-    fields.MPI_PAN_EXP,
-    fields.MPI_CVV2,
-    fields.MPI_TRXN_ID,
-    fields.MPI_ORI_TRXN_ID,
-    fields.MPI_PURCH_DATE,
-    fields.MPI_PURCH_CURR,
-    fields.MPI_PURCH_AMT,
-    fields.MPI_ADDR_MATCH,
-    fields.MPI_BILL_ADDR_CITY,
-    fields.MPI_BILL_ADDR_STATE,
-    fields.MPI_BILL_ADDR_CNTRY,
-    fields.MPI_BILL_ADDR_POSTCODE,
-    fields.MPI_BILL_ADDR_LINE1,
-    fields.MPI_BILL_ADDR_LINE2,
-    fields.MPI_BILL_ADDR_LINE3,
-    fields.MPI_SHIP_ADDR_CITY,
-    fields.MPI_SHIP_ADDR_STATE,
-    fields.MPI_SHIP_ADDR_CNTRY,
-    fields.MPI_SHIP_ADDR_POSTCODE,
-    fields.MPI_SHIP_ADDR_LINE1,
-    fields.MPI_SHIP_ADDR_LINE2,
-    fields.MPI_SHIP_ADDR_LINE3,
-    fields.MPI_EMAIL,
-    fields.MPI_HOME_PHONE,
-    fields.MPI_HOME_PHONE_CC,
-    fields.MPI_WORK_PHONE,
-    fields.MPI_WORK_PHONE_CC,
-    fields.MPI_MOBILE_PHONE,
-    fields.MPI_MOBILE_PHONE_CC,
-    flattenedLineItems,
+  return [
+    ['MPI_TRANS_TYPE', fields.MPI_TRANS_TYPE],
+    ['MPI_MERC_ID', fields.MPI_MERC_ID],
+    ['MPI_PAN', fields.MPI_PAN],
+    ['MPI_CARD_HOLDER_NAME', fields.MPI_CARD_HOLDER_NAME],
+    ['MPI_PAN_EXP', fields.MPI_PAN_EXP],
+    ['MPI_CVV2', fields.MPI_CVV2],
+    ['MPI_TRXN_ID', fields.MPI_TRXN_ID],
+    ['MPI_ORI_TRXN_ID', fields.MPI_ORI_TRXN_ID],
+    ['MPI_PURCH_DATE', fields.MPI_PURCH_DATE],
+    ['MPI_PURCH_CURR', fields.MPI_PURCH_CURR],
+    ['MPI_PURCH_AMT', fields.MPI_PURCH_AMT],
+    ['MPI_ADDR_MATCH', fields.MPI_ADDR_MATCH],
+    ['MPI_BILL_ADDR_CITY', fields.MPI_BILL_ADDR_CITY],
+    ['MPI_BILL_ADDR_STATE', fields.MPI_BILL_ADDR_STATE],
+    ['MPI_BILL_ADDR_CNTRY', fields.MPI_BILL_ADDR_CNTRY],
+    ['MPI_BILL_ADDR_POSTCODE', fields.MPI_BILL_ADDR_POSTCODE],
+    ['MPI_BILL_ADDR_LINE1', fields.MPI_BILL_ADDR_LINE1],
+    ['MPI_BILL_ADDR_LINE2', fields.MPI_BILL_ADDR_LINE2],
+    ['MPI_BILL_ADDR_LINE3', fields.MPI_BILL_ADDR_LINE3],
+    ['MPI_SHIP_ADDR_CITY', fields.MPI_SHIP_ADDR_CITY],
+    ['MPI_SHIP_ADDR_STATE', fields.MPI_SHIP_ADDR_STATE],
+    ['MPI_SHIP_ADDR_CNTRY', fields.MPI_SHIP_ADDR_CNTRY],
+    ['MPI_SHIP_ADDR_POSTCODE', fields.MPI_SHIP_ADDR_POSTCODE],
+    ['MPI_SHIP_ADDR_LINE1', fields.MPI_SHIP_ADDR_LINE1],
+    ['MPI_SHIP_ADDR_LINE2', fields.MPI_SHIP_ADDR_LINE2],
+    ['MPI_SHIP_ADDR_LINE3', fields.MPI_SHIP_ADDR_LINE3],
+    ['MPI_EMAIL', fields.MPI_EMAIL],
+    ['MPI_HOME_PHONE', fields.MPI_HOME_PHONE],
+    ['MPI_HOME_PHONE_CC', fields.MPI_HOME_PHONE_CC],
+    ['MPI_WORK_PHONE', fields.MPI_WORK_PHONE],
+    ['MPI_WORK_PHONE_CC', fields.MPI_WORK_PHONE_CC],
+    ['MPI_MOBILE_PHONE', fields.MPI_MOBILE_PHONE],
+    ['MPI_MOBILE_PHONE_CC', fields.MPI_MOBILE_PHONE_CC],
+    ['MPI_LINE_ITEM_FLATTENED', flattenedLineItems],
+    ['MPI_RESPONSE_TYPE', fields.MPI_RESPONSE_TYPE],
   ];
+}
 
-  if (includeResponseType) {
-    signParts.push(fields.MPI_RESPONSE_TYPE);
-  }
+function mpiReqSignString(fields) {
+  return getMpiReqMacFieldSequence(fields)
+    .map(([, value]) => value || '')
+    .join('');
+}
 
-  if (includeResponseLink) {
-    signParts.push(fields.MPI_RESPONSE_LINK);
-  }
+function logMpiReqSigningDetails(fields, preSignString, generatedMac) {
+  const sequence = getMpiReqMacFieldSequence(fields).map(([name, value], index) => ({
+    position: index + 1,
+    field: name,
+    value: value || '',
+    state: value ? 'populated' : 'blank',
+  }));
 
-  return signParts.map(v => v || '').join('');
+  console.log('[Cardzone][signing] MPIReq fields:', JSON.stringify(fields));
+  console.log('[Cardzone][signing] Field sequence used for signing:', JSON.stringify(sequence.map(item => item.field)));
+  console.log('[Cardzone][signing] Field-by-field details:', JSON.stringify(sequence));
+  console.log('[Cardzone][signing] Pre-sign concatenated string:', preSignString);
+  console.log('[Cardzone][signing] Generated MPI_MAC (base64url, no padding):', generatedMac);
 }
 
 function resolveResponseLink(rawResponseLink, requestBaseUrl, txnId) {
@@ -287,14 +275,14 @@ async function doMkReq({ merchantId, purchaseId, merchantPublicKeyBase64Url, mer
     pubKey: merchantPublicKeyBase64Url,
   };
 
-  const includeMkReqMac = ENABLE_MKREQ_MAC && MKREQ_KEY_EXCHANGE_PRESTORED;
+  const includeMkReqMac = ENABLE_MKREQ_MAC;
   if (includeMkReqMac) {
     payload.mac = signSha256WithRsaBase64Url(mkReqSignString(payload), merchantPrivateKeyPem);
   }
 
   console.log('[Cardzone][mkReq] method=POST contentType=application/json includeMac=', includeMkReqMac);
   if (!includeMkReqMac) {
-    console.log('[Cardzone][mkReq] mac omitted (requires pre-stored merchant public key at Cardzone/BOB).');
+    console.log('[Cardzone][mkReq] mac omitted unless explicitly enabled by Cardzone.');
   }
 
   const r = await fetch(CARDZONE_MKREQ_URL, {
@@ -567,56 +555,13 @@ async function handleStartPayment(req, res) {
     MPI_RESPONSE_LINK: tx.responseLink,
   };
 
-  const macOptions = getMpiReqMacOptions();
-  const mpiReqSignInput = mpiReqSignString(mpiReq, macOptions);
+  const mpiReqSignInput = mpiReqSignString(mpiReq);
   const generatedMpiMac = signSha256WithRsaBase64Url(mpiReqSignInput, tx.merchantPrivateKeyPem);
   mpiReq.MPI_MAC = generatedMpiMac;
 
   console.log('[Cardzone][mercReq] endpoint=', CARDZONE_REDIRECT_URL);
   console.log('[Cardzone][mercReq] flow=hosted-page html-form-post=true');
-  console.log('[Cardzone][signing] MAC variant=', macOptions.mode);
-  console.log('[Cardzone][signing] MPIReq fields used for signing:', JSON.stringify({
-    MPI_TRANS_TYPE: mpiReq.MPI_TRANS_TYPE || '',
-    MPI_MERC_ID: mpiReq.MPI_MERC_ID || '',
-    MPI_PAN: mpiReq.MPI_PAN || '',
-    MPI_CARD_HOLDER_NAME: mpiReq.MPI_CARD_HOLDER_NAME || '',
-    MPI_PAN_EXP: mpiReq.MPI_PAN_EXP || '',
-    MPI_CVV2: mpiReq.MPI_CVV2 || '',
-    MPI_TRXN_ID: mpiReq.MPI_TRXN_ID || '',
-    MPI_ORI_TRXN_ID: mpiReq.MPI_ORI_TRXN_ID || '',
-    MPI_PURCH_DATE: mpiReq.MPI_PURCH_DATE || '',
-    MPI_PURCH_CURR: mpiReq.MPI_PURCH_CURR || '',
-    MPI_PURCH_AMT: mpiReq.MPI_PURCH_AMT || '',
-    MPI_ADDR_MATCH: mpiReq.MPI_ADDR_MATCH || '',
-    MPI_BILL_ADDR_CITY: mpiReq.MPI_BILL_ADDR_CITY || '',
-    MPI_BILL_ADDR_STATE: mpiReq.MPI_BILL_ADDR_STATE || '',
-    MPI_BILL_ADDR_CNTRY: mpiReq.MPI_BILL_ADDR_CNTRY || '',
-    MPI_BILL_ADDR_POSTCODE: mpiReq.MPI_BILL_ADDR_POSTCODE || '',
-    MPI_BILL_ADDR_LINE1: mpiReq.MPI_BILL_ADDR_LINE1 || '',
-    MPI_BILL_ADDR_LINE2: mpiReq.MPI_BILL_ADDR_LINE2 || '',
-    MPI_BILL_ADDR_LINE3: mpiReq.MPI_BILL_ADDR_LINE3 || '',
-    MPI_SHIP_ADDR_CITY: mpiReq.MPI_SHIP_ADDR_CITY || '',
-    MPI_SHIP_ADDR_STATE: mpiReq.MPI_SHIP_ADDR_STATE || '',
-    MPI_SHIP_ADDR_CNTRY: mpiReq.MPI_SHIP_ADDR_CNTRY || '',
-    MPI_SHIP_ADDR_POSTCODE: mpiReq.MPI_SHIP_ADDR_POSTCODE || '',
-    MPI_SHIP_ADDR_LINE1: mpiReq.MPI_SHIP_ADDR_LINE1 || '',
-    MPI_SHIP_ADDR_LINE2: mpiReq.MPI_SHIP_ADDR_LINE2 || '',
-    MPI_SHIP_ADDR_LINE3: mpiReq.MPI_SHIP_ADDR_LINE3 || '',
-    MPI_EMAIL: mpiReq.MPI_EMAIL || '',
-    MPI_HOME_PHONE: mpiReq.MPI_HOME_PHONE || '',
-    MPI_HOME_PHONE_CC: mpiReq.MPI_HOME_PHONE_CC || '',
-    MPI_WORK_PHONE: mpiReq.MPI_WORK_PHONE || '',
-    MPI_WORK_PHONE_CC: mpiReq.MPI_WORK_PHONE_CC || '',
-    MPI_MOBILE_PHONE: mpiReq.MPI_MOBILE_PHONE || '',
-    MPI_MOBILE_PHONE_CC: mpiReq.MPI_MOBILE_PHONE_CC || '',
-    MPI_LINE_ITEM: Array.isArray(mpiReq.MPI_LINE_ITEM) ? mpiReq.MPI_LINE_ITEM : [],
-    MPI_RESPONSE_TYPE: mpiReq.MPI_RESPONSE_TYPE || '',
-    MPI_RESPONSE_LINK: mpiReq.MPI_RESPONSE_LINK || '',
-    includeResponseTypeInMac: macOptions.includeResponseType,
-    includeResponseLinkInMac: macOptions.includeResponseLink,
-  }));
-  console.log('[Cardzone][signing] Pre-sign concatenated string:', mpiReqSignInput);
-  console.log('[Cardzone][signing] Generated MPI_MAC (base64url, no padding):', generatedMpiMac);
+  logMpiReqSigningDetails(mpiReq, mpiReqSignInput, generatedMpiMac);
 
   tx.requestFields = mpiReq;
   tx.status = 'REDIRECTED_TO_HOSTED_PAGE';
