@@ -315,8 +315,9 @@ function renderCheckoutPage() {
             <input name="merchantId" value="${escapeHtml(MERCHANT_ID)}" required />
           </div>
           <div>
-            <label>Currency (ISO 4217 numeric)</label>
-            <input name="currency" value="064" required />
+            <label>Currency</label>
+            <input name="currency" value="840" readonly style="background:#f3f4f6;cursor:not-allowed" />
+            <small style="color:#6b7280">USD (840)</small>
           </div>
           <div>
             <label>Amount</label>
@@ -344,23 +345,23 @@ function renderCheckoutPage() {
           </div>
           <div>
             <label>Mobile phone country code</label>
-            <input name="mobilePhoneCc" value="975" />
+            <input name="mobilePhoneCc" value="1" />
           </div>
           <div>
             <label>Billing country (ISO 3166-1 numeric)</label>
-            <input name="billCountry" value="064" />
+            <input name="billCountry" value="840" />
           </div>
           <div>
             <label>Billing city</label>
-            <input name="billCity" value="Thimphu" />
+            <input name="billCity" value="New York" />
           </div>
           <div>
             <label>Billing postcode</label>
-            <input name="billPostcode" value="11001" />
+            <input name="billPostcode" value="10001" />
           </div>
           <div class="full">
             <label>Billing address line 1</label>
-            <input name="billLine1" value="Clock Tower Square" />
+            <input name="billLine1" value="123 Main Street" />
           </div>
           <div>
             <label>Response type</label>

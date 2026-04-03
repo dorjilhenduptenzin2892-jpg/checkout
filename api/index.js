@@ -278,18 +278,18 @@ function renderCheckoutPage(baseUrl) {
       <form method="post" action="/start-payment">
         <div class="grid">
           <div><label>Merchant ID</label><input name="merchantId" value="${escapeHtml(MERCHANT_ID)}" required /></div>
-          <div><label>Currency (ISO 4217 numeric)</label><input name="currency" value="064" required /></div>
+          <div><label>Currency</label><input name="currency" value="840" readonly style="background:#f3f4f6;cursor:not-allowed" /><small style="color:#6b7280">USD (840)</small></div>
           <div><label>Amount</label><input name="amount" value="1.00" required /></div>
           <div><label>Order / Purchase ID</label><input name="purchaseId" placeholder="Leave blank to auto-generate" /></div>
           <div><label>Order Reference</label><input name="orderRef" placeholder="Optional merchant order reference" /></div>
           <div><label>Customer Reference</label><input name="customerRef" placeholder="Optional customer/account reference" /></div>
           <div><label>Email</label><input name="email" type="email" value="uat@example.com" /></div>
           <div><label>Mobile phone</label><input name="mobilePhone" value="17123456" /></div>
-          <div><label>Mobile phone country code</label><input name="mobilePhoneCc" value="975" /></div>
-          <div><label>Billing country (ISO 3166-1 numeric)</label><input name="billCountry" value="064" /></div>
-          <div><label>Billing city</label><input name="billCity" value="Thimphu" /></div>
-          <div><label>Billing postcode</label><input name="billPostcode" value="11001" /></div>
-          <div class="full"><label>Billing address line 1</label><input name="billLine1" value="Clock Tower Square" /></div>
+          <div><label>Mobile phone country code</label><input name="mobilePhoneCc" value="1" /></div>
+          <div><label>Billing country (ISO 3166-1 numeric)</label><input name="billCountry" value="840" /></div>
+          <div><label>Billing city</label><input name="billCity" value="New York" /></div>
+          <div><label>Billing postcode</label><input name="billPostcode" value="10001" /></div>
+          <div class="full"><label>Billing address line 1</label><input name="billLine1" value="123 Main Street" /></div>
           <div>
             <label>Response type</label>
             <select name="responseType">
